@@ -12,8 +12,24 @@
     "test": "jest",
     "prepare": "npm run build"
   },
-  "author": "Your Name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IgorKramar/secure-password-generator.git"
+  },
+  "keywords": [
+    "password",
+    "generator",
+    "secure",
+    "typescript",
+    "cli",
+    "cryptography"
+  ],
+  "author": "Igor Kramar",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/IgorKramar/secure-password-generator/issues"
+  },
+  "homepage": "https://github.com/IgorKramar/secure-password-generator#readme",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.4.2",
