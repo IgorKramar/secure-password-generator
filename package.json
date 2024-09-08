@@ -1,5 +1,5 @@
 {
-  "name": "secure-password-generator",
+  "name": "ts-secure-password-generator",
   "version": "0.0.1",
   "description": "Generates secure passwords based on user-provided words.",
   "main": "dist/index.js",
