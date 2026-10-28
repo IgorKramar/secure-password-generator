@@ -1,97 +1,101 @@
+<div align="center">
+
 # Secure Password Generator
 
-`secure-password-generator` is a TypeScript library and CLI tool that generates secure passwords based on user-provided words. The package is focused on security and flexibility, adding symbols, numbers, and special characters to create complex and strong passwords.
+**English** · [Русский](README.ru.md)
 
-## Features
+### A word in. A mixed password out.
 
-- **Library Usage**: Integrate password generation into your TypeScript or JavaScript projects.
-- **CLI Application**: Generate passwords directly from the command line.
-- **Cryptographically Secure**: Uses cryptographically secure random numbers for password generation.
-- **Customization**: Allows you to customize the base word and password length.
-- **Cross-Environment**: Works seamlessly in both server-side (Node.js) and client-side (browser) environments.
+TypeScript library · interactive Node.js CLI · Web Crypto
 
-## Installation
+[![npm](https://img.shields.io/npm/v/ts-secure-password-generator?style=flat-square&color=7aa2f7)](https://www.npmjs.com/package/ts-secure-password-generator)
+[![MIT](https://img.shields.io/badge/license-MIT-9ece6a?style=flat-square)](LICENSE.md)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)
 
-### As a Library
+[Install](#install) · [Library](#library) · [CLI](#cli) · [Limits](#security-and-runtime-limits) · [Development](#development)
 
-To install it as a library in your project, use npm:
+</div>
 
-```bash
-npm install secure-password-generator
-```
+Start with a word, mix its letter case, add characters and shuffle the result. The package exposes one function and an interactive command. Its published npm name is **`ts-secure-password-generator`**; the repository name is different.
 
-### As a CLI Tool
+## Install
 
-To install the package globally and use it as a CLI tool, run:
+Use a current supported Node.js release with global `crypto.getRandomValues` available.
 
-```bash
-npm install -g secure-password-generator
-```
+```sh
+# Library
+npm install ts-secure-password-generator
 
-## Usage
-
-### Library
-
-#### Import the Package
-
-First, import the package into your project:
-
-```typescript
-import { PasswordService } from 'secure-password-generator';
-
-const userWord = "apple";
-const passwordLength = 12;
-
-const password = PasswordService.generatePassword(userWord, passwordLength);
-console.log(`Generated password: ${password}`);
-```
-
-#### Functions
-
-- **`generatePassword(word: string, length: number): string`**: Generates a secure password based on the provided word and desired length. It randomly mixes character cases, adds special symbols and numbers, and shuffles the result to increase security.
-
-### CLI
-
-After installing the package globally, you can use the `secure-passgen` command to generate passwords.
-
-#### Basic Usage
-
-```bash
+# Interactive CLI
+npm install --global ts-secure-password-generator
 secure-passgen
 ```
 
-#### Interactive Prompt
+## Library
 
-The CLI tool will prompt you to enter a base word and the desired password length:
+```ts
+import { generatePassword } from 'ts-secure-password-generator';
 
-```bash
-$ secure-passgen
-Secure Password Generator CLI
-==============================
-
-Enter a base word: apple
-Enter desired password length: 12
-
-Generated Password: App1e!23xYz
+const password = generatePassword('apple', 16);
+// Use the result where needed; do not log production passwords.
 ```
 
-Currently, the CLI operates interactively, but future versions may include command-line options for non-interactive usage.
+CommonJS:
 
-## Password Generation Rules
+```js
+const { generatePassword } = require('ts-secure-password-generator');
+const password = generatePassword('apple', 16);
+```
 
-- **User Word Transformation**: The user's base word is randomly transformed with mixed character cases (uppercase and lowercase).
-- **Character Addition**: Symbols, numbers, and additional letters (uppercase and lowercase) are added to the word to meet the desired password length.
-- **Cryptographically Secure**: The password is generated using cryptographically secure random numbers for improved security.
-- **Shuffling**: The generated password is shuffled to increase complexity and randomness.
+| Argument | Meaning |
+|:---|:---|
+| `word: string` | Base word whose characters are case-mixed and retained in the result |
+| `length: number` | Desired length; use a finite integer at least `word.length + 4` |
+| Return value | A password string; throws if the requested length is too short |
 
-## Testing
+The public entry point exports **`generatePassword`**, not the internal `PasswordService` class. For predictable character counts, use ASCII input. The implementation mixes UTF-16 string lengths, code points and Unicode case conversion; exact lengths are not guaranteed for arbitrary Unicode input.
 
-The project uses Jest for testing. To run the tests, use the following command:
+## CLI
 
-```bash
+Run `secure-passgen`, enter a base word, then enter the desired length. The CLI prints the generated password to the terminal. Input is visible; the result remains in terminal scrollback. There are no non-interactive command-line options.
+
+## How generation works
+
+1. Randomize the case of each character in the base word.
+2. Add a special character from `!@#$%^&*`, a digit and an uppercase letter when missing.
+3. Fill the requested length with letters, digits and special characters.
+4. Shuffle using Fisher–Yates.
+
+## Security and runtime limits
+
+- Random bytes come from `crypto.getRandomValues`. Character selection uses modulo reduction, which introduces bias; this is not an audited password generator or a claim of uniform output.
+- A supplied word contributes predictable structure. Password length alone does not establish entropy. Do not use a personal secret as the base word.
+- Validate library input yourself: a finite integer length and a practical maximum are required. The library does not comprehensively reject `NaN`, infinity, fractions or excessive lengths.
+- The npm entry point is CommonJS with TypeScript declarations. Browser use requires a compatible bundler and Web Crypto; no standalone browser bundle is provided.
+- The CLI does not store passwords in a file, but terminal recording or scrollback may retain its output.
+
+## Development
+
+```sh
+git clone https://github.com/IgorKramar/secure-password-generator.git
+cd secure-password-generator
+npm ci
+npm run build
 npm test
+node dist/cli.js
 ```
+
+`npm ci` also runs the package's `prepare` script, which builds the TypeScript source.
+
+| Location | Purpose |
+|:---|:---|
+| [src/index.ts](src/index.ts) | Public library export |
+| [src/domain/password.ts](src/domain/password.ts) | Generation and random selection |
+| [src/application/passwordService.ts](src/application/passwordService.ts) | Internal service |
+| [src/cli.ts](src/cli.ts) | Interactive command |
+| [tests/](tests/) | Jest tests |
 
 ## License
 
-[MIT License](./LICENSE.md).
+[MIT](LICENSE.md) · Copyright © 2024 Igor Kramar.
