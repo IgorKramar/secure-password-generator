@@ -32,6 +32,12 @@ secure-passgen random --entropy 128
 
 После выпуска этих изменений установка из реестра выполняется командами `npm install ts-secure-password-generator` или `npm install --global ts-secure-password-generator`.
 
+## Эксперимент ручного ввода на телефоне
+
+Для этапа ③ подготовлен отдельный локальный инструмент: `npm run study:build`, затем `npm run study:serve -- --lan` для телефона в той же доверенной Wi-Fi сети. Сравниваются random62 (22 символа), строчный кандидат (28 символов, без `l`) и EFF (10 слов); каждый достигает цели 128 бит. Политика кандидата включена в пакет как `examples/mobile-lowercase-policy.json`; новый публичный API не требуется.
+
+Инструмент измеряет время, ошибки отправки и оценки удобства; образцы и введённый текст в экспорт не входят. **Реальных замеров и подтверждённого улучшения удобства пока нет.** [Методика, запуск на телефоне, исключения и анализ](research/mobile-input/README.ru.md) ([версия в репозитории для читателей npm](https://github.com/IgorKramar/secure-password-generator/blob/main/research/mobile-input/README.ru.md)). Инструмент и Playwright как devDependency не входят в runtime установленного пакета. Проверка: `npx playwright install chromium`, затем `npm run test:study`.
+
 ## Библиотека
 
 ```ts

@@ -13,7 +13,11 @@
     "test": "jest --runInBand",
     "prepack": "npm run build",
     "test:package": "node scripts/check-package.cjs",
-    "check:wordlist": "node scripts/check-wordlist.cjs"
+    "check:wordlist": "node scripts/check-wordlist.cjs",
+    "study:build": "npm run build && tsc -p research/mobile-input/tsconfig.json && node scripts/build-study.cjs",
+    "study:analyze": "node scripts/analyze-study.cjs",
+    "study:serve": "node scripts/serve-study.cjs",
+    "test:study": "npm run study:build && playwright test --config research/mobile-input/playwright.config.cjs"
   },
   "repository": {
     "type": "git",
@@ -34,6 +38,7 @@
   },
   "homepage": "https://github.com/IgorKramar/secure-password-generator#readme",
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
@@ -51,6 +56,7 @@
     "LICENSE.md",
     "data/eff-large-wordlist.txt",
     "THIRD_PARTY_NOTICES.md",
-    "examples/site-policy.json"
+    "examples/site-policy.json",
+    "examples/mobile-lowercase-policy.json"
   ]
 }

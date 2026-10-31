@@ -32,6 +32,12 @@ secure-passgen random --entropy 128
 
 After a release containing these changes, registry installation uses `npm install ts-secure-password-generator` or `npm install --global ts-secure-password-generator`.
 
+## Mobile input experiment (research)
+
+Roadmap stage ③ has a separate local measurement tool: `npm run study:build`, then `npm run study:serve -- --lan` for a phone on the same trusted Wi-Fi. It compares random62 (22 characters), a lowercase candidate (28 characters, excluding `l`) and EFF (10 words), each reaching a 128-bit target. The reusable candidate policy is packaged as `examples/mobile-lowercase-policy.json`; no new public API is required.
+
+The study records time, submission errors and ease ratings; exports omit target strings and typed text. **No human measurements or usability improvements are claimed yet.** [Protocol, phone instructions, exclusions and analysis](research/mobile-input/README.md) ([repository copy for npm readers](https://github.com/IgorKramar/secure-password-generator/blob/main/research/mobile-input/README.md)). The instrument and its Playwright devDependency are not part of the installed runtime. Use `npm run test:study` after `npx playwright install chromium` to verify it.
+
 ## Library
 
 ```ts

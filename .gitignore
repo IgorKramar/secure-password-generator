@@ -19,3 +19,9 @@ coverage/
 # IDE
 .vscode/
 .idea/
+
+# Local study builds and participant data (never commit measurements by accident)
+.study/
+study-results/
+playwright-report/
+test-results/

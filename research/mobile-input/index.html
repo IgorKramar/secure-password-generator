@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="STUDY_CSP">
+  <title>Ручной ввод · Secure Password Generator</title>
+  <style>
+    :root { color-scheme: light; font: 17px/1.5 system-ui, sans-serif; color: #18283a; background: #f3f5f8; }
+    * { box-sizing: border-box; } body { margin: 0 auto; max-width: 720px; padding: 24px 16px 48px; }
+    main { padding: 24px; background: #fff; border: 1px solid #dde3ec; border-radius: 16px; }
+    h1 { font-size: 1.7rem; line-height: 1.2; margin-top: 0; } h2 { font-size: 1.2rem; }
+    label { display: block; margin-top: 16px; } input, select, button { font: inherit; }
+    input:not([type=checkbox]), select { width: 100%; padding: 10px; border: 1px solid #748297; border-radius: 6px; }
+    button { padding: 12px 18px; border-radius: 8px; border: 0; background: #1651b8; color: white; cursor: pointer; margin: 14px 8px 0 0; min-height: 48px; }
+    button.secondary { background: #e8edf4; color: #18283a; } button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #e49a18; outline-offset: 3px; }
+    #target { white-space: pre-wrap; overflow-wrap: anywhere; font: 1.25rem/1.6 ui-monospace, monospace; padding: 16px; background: #edf3fc; border-radius: 8px; user-select: none; }
+    #answer { font-family: ui-monospace, monospace; } #progress { color: #415572; font-weight: 600; } #message { min-height: 3em; }
+    small { color: #52617a; } pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }
+    [hidden] { display: none !important; } @media(max-width: 420px) { main { padding: 16px; } body { padding: 12px 8px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Как удобнее вводить пароль?</h1>
+  <div id="instructions">
+    <p>Пилотное сравнение трёх форматов на телефоне. На каждом шаге перепечатайте показанный образец. Запоминать его не нужно: он останется на экране.</p>
+    <p>Используйте экранную латинскую клавиатуру, вертикальную ориентацию и одинаковый способ ввода. Отключите автокоррекцию, подсказки и жестовый ввод в настройках клавиатуры. Не пользуйтесь вставкой и менеджером паролей.</p>
+    <p>Здесь только одноразовые образцы. <strong>Не используйте их для аккаунтов и не вводите свои пароли.</strong> Страница не отправляет результаты и не сохраняет их в хранилище браузера. JSON содержит условия, времена и счётчики; сами образцы и введённый текст в него не попадают. Сведения об устройстве будут в файле — не указывайте имя или серийный номер.</p>
+  </div>
+  <form id="setup">
+    <label>Номер участника (без имени)<input name="participant" type="number" min="1" max="999" step="1" value="1" required></label>
+    <label>Модель устройства<input name="device" maxlength="120" required placeholder="Например: Pixel 8"></label>
+    <label>Операционная система и версия<input name="os" maxlength="120" required></label>
+    <label>Браузер и версия<input name="browser" maxlength="120" required></label>
+    <label>Клавиатура и версия<input name="keyboard" maxlength="120" required></label>
+    <label>Латинская раскладка<input name="layout" maxlength="120" required placeholder="Например: English QWERTY"></label>
+    <label>Насколько вам знакомы английские слова?<select name="englishFamiliarity" required><option value="">Выберите</option><option value="limited">Мало знакомы</option><option value="basic">Знакомы основные слова</option><option value="comfortable">Читаю уверенно</option></select></label>
+    <label>Способ ввода<select name="technique" required><option value="">Выберите</option><option value="one-thumb-portrait">Один большой палец, вертикально</option><option value="two-thumbs-portrait">Два больших пальца, вертикально</option><option value="index-finger-portrait">Указательный палец, вертикально</option></select></label>
+    <label><input type="checkbox" required> Я согласен(на) на этот локальный опыт и настроил(а) клавиатуру. Могу остановиться в любой момент.</label>
+    <button>Подготовить сессию</button>
+  </form>
+  <p id="progress"></p>
+  <p id="message" role="status" aria-live="polite"></p>
+  <button id="next" hidden>Показать образец и начать</button>
+  <form id="entry" hidden autocomplete="off">
+    <div id="target" aria-label="Образец для ввода"></div>
+    <label for="answer">Ваш ввод</label>
+    <input id="answer" type="text" maxlength="512" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="done" data-lpignore="true" data-1p-ignore>
+    <button>Проверить</button><button id="skip" class="secondary" type="button">Пропустить попытку</button>
+  </form>
+  <form id="feedback" hidden>
+    <label>Насколько удобно было вводить?<select id="rating" required><option value="">Выберите оценку</option><option value="1">1 — очень неудобно</option><option value="2">2</option><option value="3">3</option><option value="4">4 — нейтрально</option><option value="5">5</option><option value="6">6</option><option value="7">7 — очень удобно</option></select></label>
+    <label>Сколько раз вы переключали регистр или слой клавиатуры?<input id="switches" type="number" min="0" max="999" step="1" placeholder="Необязательно; оставьте пустым, если не помните"></label>
+    <small>Самооценка переключений; страница не видит клавиши экранной клавиатуры.</small><br>
+    <button>Сохранить оценку</button>
+  </form>
+  <button id="save" class="secondary" hidden>Скачать результаты JSON</button>
+  <details id="results" hidden><summary>Предварительные счётчики</summary><p>Только эта сессия. Тренировки и отмеченные попытки исключены из основного сравнения. Время показано только для успешных завершений.</p><pre id="summary"></pre></details>
+  <p><small id="build"></small></p>
+  <details><summary>Лицензии кода и словаря</summary><pre>STUDY_NOTICES</pre></details>
+  <noscript>Для измерения нужен JavaScript. Откройте файл в браузере, а не в просмотрщике документов.</noscript>
+</main>
+<script>/* STUDY_SCRIPT */</script>
+</body>
+</html>
