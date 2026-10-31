@@ -1,0 +1,2 @@
+# Preserve the exact vendored bytes used for the provenance checksum.
+data/eff-large-wordlist.txt -text

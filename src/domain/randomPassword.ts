@@ -1,6 +1,7 @@
 import { DEFAULT_ENTROPY_BITS, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, requireInteger } from './limits';
 import { entropyForLength, lengthForEntropy } from './entropy';
 import { createRandomIndex } from './random';
+import { requireOptions } from './validation';
 
 export const RANDOM_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 export const AMBIGUOUS_CHARACTERS = '0O1Il';
@@ -25,17 +26,7 @@ export interface RandomPasswordInfo {
 
 /** Resolve and validate a request without generating a password or accessing crypto. */
 export function getRandomPasswordInfo(options: RandomPasswordOptions = {}): RandomPasswordInfo {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
-    throw new TypeError('Options must be an object');
-  }
-  const prototype = Object.getPrototypeOf(options);
-  if (prototype !== null && prototype !== Object.prototype) {
-    throw new TypeError('Options must be a plain object');
-  }
-  const allowed = ['length', 'entropyBits', 'excludeAmbiguous'];
-  if (Reflect.ownKeys(options).some(key => typeof key !== 'string' || !allowed.includes(key))) {
-    throw new TypeError('Unknown random password option');
-  }
+  requireOptions(options, 'random password', ['length', 'entropyBits', 'excludeAmbiguous']);
   const { length, entropyBits, excludeAmbiguous } = options;
   if (excludeAmbiguous !== undefined && typeof excludeAmbiguous !== 'boolean') {
     throw new TypeError('excludeAmbiguous must be a boolean');

@@ -12,7 +12,8 @@
       "ES2022",
       "DOM"
     ],
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "resolveJsonModule": true
   },
   "include": [
     "src/**/*"
