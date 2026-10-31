@@ -6,15 +6,18 @@ const { spawnSync } = require('node:child_process');
 const { validateSession, planTrials } = require('../../.study/model.cjs');
 const url = 'http://127.0.0.1:4173/mobile-input.html';
 
-async function setup(page) {
+async function setup(page, gesture = 'off') {
   await page.goto(url);
   for (const name of ['device', 'os', 'browser', 'keyboard', 'layout']) await page.locator(`[name=${name}]`).fill('AUTOMATED CHECK — NOT PARTICIPANT DATA');
   await page.locator('[name=technique]').selectOption('two-thumbs-portrait');
   await page.locator('[name=englishFamiliarity]').selectOption('basic');
+  for (const name of ['autocorrect', 'predictions']) await page.locator(`[name=${name}]`).selectOption('off');
+  await page.locator('[name=gesture]').selectOption(gesture);
   await page.locator('[type=checkbox]').check();
   await page.locator('#setup button').click();
 }
 async function rate(page) {
+  await page.locator('#input-method').selectOption('taps');
   await page.locator('#rating').selectOption('4');
   await page.locator('#feedback button').click();
 }
@@ -38,6 +41,8 @@ test('complete mobile-sized session exports counts, no strings, storage or netwo
     await page.locator('#next').click();
     const target = await page.locator('#target').innerText();
     targets.push(target);
+    // Emulate the composition notification seen on Android without treating it as assistance.
+    await page.locator('#answer').dispatchEvent('compositionstart');
     await expect(page.locator('#answer')).toBeFocused();
     // Trusted browser events exercise the instrument, not a human performance claim.
     if (i === 3) {
@@ -52,6 +57,10 @@ test('complete mobile-sized session exports counts, no strings, storage or netwo
   }
   await expect(page.locator('#progress')).toHaveText('Сессия завершена');
   const result = validateSession(await download(page));
+  expect(result.protocol).toBe('mobile-input-v2');
+  expect(result.inputSettings).toEqual({ autocorrect: 'off', predictions: 'off', gesture: 'off' });
+  expect(result.trials.every(t => t.inputMethod === 'taps')).toBeTruthy();
+  expect(require('../../.study/model.cjs').analyzeSession(result).quality.eligible).toBe(9);
   expect(result.trials).toHaveLength(12);
   expect(result.trials.map(t => t.condition)).toEqual(planTrials(1).map(t => t.condition));
   expect(result.trials.every(t => t.status === 'correct')).toBeTruthy();
@@ -104,6 +113,15 @@ test('missing crypto stops generation with a clear message', async ({ page }) =>
   await expect(page.locator('#entry')).toBeHidden();
 });
 
+test('v2 cannot start while gesture input is enabled or unknown', async ({ page }) => {
+  for (const value of ['on', 'unknown']) {
+    await setup(page, value);
+    await expect(page.locator('#setup')).toBeVisible();
+    await expect(page.locator('#next')).toBeHidden();
+    await expect(page.locator('#message')).toContainText('Сначала отключите');
+  }
+});
+
 test('analyzer validates bounded files, reports incomplete data and redacts failures', () => {
   const temporary = mkdtempSync(join(tmpdir(), 'study-check-'));
   const script = resolve(__dirname, '../../scripts/analyze-study.cjs');
@@ -119,9 +137,14 @@ test('analyzer validates bounded files, reports incomplete data and redacts fail
     expect(accepted.stderr).toBe('');
     expect(JSON.parse(accepted.stdout).participants[0]).toMatchObject({ complete: false });
     expect(JSON.parse(accepted.stdout).participants[0].conditions.every(c => c.recorded === 0 && c.medianCompletionMs === null)).toBeTruthy();
+    expect(JSON.parse(accepted.stdout).participants[0].compositionSensitivity.interpretation).toContain('Post-hoc');
+    expect(JSON.parse(accepted.stdout).participants[0].inputSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(run(file, file).status).toBe(1);
     const second = join(temporary, 'second.json');
     writeFileSync(second, JSON.stringify({ ...data, participant: 2, build: 'b'.repeat(64) }));
+    expect(run(file, second).status).toBe(1);
+    writeFileSync(second, JSON.stringify({ ...data, participant: 2, protocol: 'mobile-input-v2',
+      inputSettings: { autocorrect: 'off', predictions: 'off', gesture: 'off' } }));
     expect(run(file, second).status).toBe(1);
     for (const content of [text.padEnd(128 * 1024 + 1, ' '), '{"password":"DO-NOT-ECHO"}', '{bad', Buffer.from([0xff])]) {
       writeFileSync(file, content);

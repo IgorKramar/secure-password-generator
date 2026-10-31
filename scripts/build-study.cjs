@@ -21,5 +21,6 @@ const csp = `default-src 'none'; script-src 'sha256-${hash(script)}'; style-src 
 writeFileSync(resolve(out, 'mobile-input.html'), template.replace('STUDY_CSP', csp).replace('/* STUDY_SCRIPT */', script));
 buildSync({ entryPoints: [resolve(root, 'research/mobile-input/model.ts')], bundle: true, platform: 'node',
   format: 'cjs', target: 'node22', outfile: resolve(out, 'model.cjs'), logLevel: 'silent' });
-writeFileSync(resolve(out, 'build.json'), JSON.stringify({ protocol: 'mobile-input-v1', fingerprint }, null, 2) + '\n');
-console.log(`Built .study/mobile-input.html (${fingerprint.slice(0, 12)}). No participant measurements have been collected.`);
+const { PROTOCOL } = require(resolve(out, 'model.cjs'));
+writeFileSync(resolve(out, 'build.json'), JSON.stringify({ protocol: PROTOCOL, fingerprint }, null, 2) + '\n');
+console.log(`Built .study/mobile-input.html (${PROTOCOL}, ${fingerprint.slice(0, 12)}). Building does not collect participant measurements.`);

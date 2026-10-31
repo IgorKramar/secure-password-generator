@@ -1,4 +1,5 @@
-import { generateStimulus, planTrials, PROTOCOL, StudySession, Trial, TrialResult, TRIAL_LIMIT_MS, summarize, validateSession } from './model';
+import { generateStimulus, planTrials, PROTOCOL, StudySession, Trial, TrialResult, TRIAL_LIMIT_MS, summarize, validateSession,
+  InputMethod, InputSettings, settingsConfirmedOff } from './model';
 
 declare const STUDY_BUILD: string;
 function element<T extends HTMLElement>(id: string): T {
@@ -24,6 +25,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 function finish(result: TrialResult) {
   clearTimeout(timer);
   active = undefined;
+  result.inputMethod = 'unknown';
   pending = result;
   session.trials.push(result);
   answer.value = '';
@@ -44,7 +46,14 @@ setup.addEventListener('submit', event => {
   const participant = Number(data.get('participant'));
   plan = planTrials(participant);
   const field = (name: string) => String(data.get(name)).trim();
+  const inputSettings = { autocorrect: field('autocorrect'), predictions: field('predictions'), gesture: field('gesture') } as InputSettings;
+  if (!settingsConfirmedOff(inputSettings)) {
+    message.textContent = 'Этот опыт сравнивает отдельные нажатия. Сначала отключите автокоррекцию, подсказки и жестовый ввод в настройках клавиатуры; затем отметьте каждую настройку как выключенную.';
+    message.scrollIntoView({ block: 'center' });
+    return;
+  }
   session = { protocol: PROTOCOL, build: STUDY_BUILD, participant,
+    inputSettings,
     environment: { device: field('device'), os: field('os'), browser: field('browser'), keyboard: field('keyboard'),
       layout: field('layout'), technique: field('technique'), englishFamiliarity: field('englishFamiliarity') }, trials: [] };
   try { validateSession(session); }
@@ -104,6 +113,7 @@ feedback.addEventListener('submit', event => {
   event.preventDefault();
   if (!pending || !feedback.reportValidity()) return;
   pending.ease = Number(element<HTMLSelectElement>('rating').value);
+  pending.inputMethod = element<HTMLSelectElement>('input-method').value as InputMethod;
   const switches = element<HTMLInputElement>('switches').value;
   pending.reportedSwitches = switches === '' ? null : Number(switches);
   pending = undefined;
@@ -114,8 +124,11 @@ feedback.addEventListener('submit', event => {
     message.textContent = 'Следующая попытка начнётся только после нажатия кнопки.';
     next.focus();
   } else {
-    message.textContent = 'Готово. Скачайте JSON с результатами. Перезагрузка удалит данные из страницы.';
-    element('summary').textContent = JSON.stringify(summarize(session), null, 2);
+    const summary = summarize(session);
+    message.textContent = summary.every(result => result.eligible === 0) ?
+      'Ни одна измеряемая попытка не подходит под условия v2. Данные сохранены: скачайте JSON для разбора причин. Перезагрузка удалит данные.' :
+      'Готово. Скачайте JSON с результатами. Перезагрузка удалит данные из страницы.';
+    element('summary').textContent = JSON.stringify(summary, null, 2);
     element('results').hidden = false;
     save.focus();
   }

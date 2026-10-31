@@ -1,5 +1,7 @@
 # Stage-three instrument verification
 
+Historical verification of the first instrument, before participant data arrived. See the [subsequent P1 pilot and prospective v2 correction](../research/mobile-input/results/pilot-p1.md) for the current research status; the original evidence below is retained.
+
 Date: 2026-10-31. Base: `0034dc23443f69a12ea48b10cf69d59374d20a3b` on clean `main`; working branch `feat/mobile-input-study`. No applicable `AGENTS.md` was present. The owner selected **mobile** for the first real-device experiment. Roadmap: https://app.notion.com/p/40a99aa2eb7b8126aa9ff909d0cea9ae.
 
 ## Implemented scope and boundary

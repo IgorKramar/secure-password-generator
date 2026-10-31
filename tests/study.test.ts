@@ -1,4 +1,4 @@
-import { formatInfo, generateStimulus, planTrials, Trial, PROTOCOL, TRIAL_LIMIT_MS, StudySession, validateSession, summarize, editDistance } from '../research/mobile-input/model';
+import { formatInfo, generateStimulus, planTrials, Trial, PROTOCOL, LEGACY_PROTOCOL, TRIAL_LIMIT_MS, StudySession, validateSession, summarize, analyzeSession, editDistance } from '../research/mobile-input/model';
 import mobilePolicy from '../examples/mobile-lowercase-policy.json';
 import { getPolicyPasswordInfo } from '../src';
 
@@ -10,7 +10,7 @@ function session(): StudySession {
     trial.input('insertText', 1001, true);
     return { ...trial.submit(target, 2000)!, ease: 4 };
   });
-  return { protocol: PROTOCOL, build: 'a'.repeat(64), participant: 1,
+  return { protocol: LEGACY_PROTOCOL, build: 'a'.repeat(64), participant: 1,
     environment: { device: 'synthetic', os: 'test', browser: 'test', keyboard: 'test', layout: 'test', technique: 'test', englishFamiliarity: 'basic' }, trials };
 }
 
@@ -101,6 +101,70 @@ describe('mobile study protocol', () => {
     const data = session(); data.trials = [];
     expect(validateSession(data)).toBe(data);
     expect(summarize(data).every(r => r.recorded === 0 && r.medianCompletionMs === null)).toBe(true);
+  });
+  test('v1 all-composition data keep zero primary eligibility and a separate diagnostic', () => {
+    const data = session();
+    data.trials.forEach(t => { t.flags = ['composition']; });
+    data.trials[10].status = 'skipped';
+    data.trials[10].firstAttemptDistance = 2; data.trials[10].wrongSubmissions = 3;
+    const before = JSON.stringify(data);
+    const report = analyzeSession(validateSession(data));
+    expect(report.conditions.every(c => c.eligible === 0 && c.medianCompletionMs === null)).toBe(true);
+    expect(report.conditions[0]).toMatchObject({ flagged: 3, excluded: 3, observedCompleted: 2, observedSkipped: 1 });
+    expect(report.compositionSensitivity!.conditions[0]).toMatchObject({ flagged: 3, excluded: 0, eligible: 3,
+      completed: 2, skipped: 1, attempted: 3, firstAttemptErrors: 1, wrongSubmissions: 3, medianCompletionMs: 1000 });
+    expect(report.quality.flagCounts.composition).toBe(9);
+    expect(report.quality.warnings).toContain('No measured trials are eligible under mobile-input-v1.');
+    expect(JSON.stringify(data)).toBe(before);
+  });
+  test('composition sensitivity never admits another flag or a practice trial', () => {
+    const data = session();
+    data.trials.forEach(t => { t.flags = ['composition']; });
+    data.trials[3].flags.push('backgrounded');
+    data.trials[6].flags.push('replacement');
+    data.trials[9].flags.push('paste-or-drop');
+    const report = analyzeSession(data).compositionSensitivity!;
+    expect(report.conditions.every(c => c.recorded === 3 && c.eligible === 2 && c.excluded === 1)).toBe(true);
+  });
+  test('v2 permits composition only with explicit off settings and per-trial taps', () => {
+    const data = session(); data.protocol = PROTOCOL;
+    data.inputSettings = { autocorrect: 'off', predictions: 'off', gesture: 'off' };
+    data.trials.forEach(t => { t.flags = ['composition']; t.inputMethod = 'taps'; });
+    expect(analyzeSession(validateSession(data)).quality.eligible).toBe(9);
+    expect(analyzeSession(data).compositionSensitivity).toBeNull();
+    data.trials[3].inputMethod = 'assisted';
+    data.trials[6].inputMethod = 'unknown';
+    data.trials[9].flags.push('untrusted-input');
+    const report = analyzeSession(validateSession(data));
+    expect(report.quality.eligible).toBe(6);
+    expect(report.quality.inputMethodCounts).toEqual({ taps: 7, assisted: 1, unknown: 1 });
+    expect(report.conditions.every(c => c.eligible === 2)).toBe(true);
+    data.inputSettings.gesture = 'on';
+    expect(analyzeSession(validateSession(data)).quality.eligible).toBe(0);
+    data.inputSettings.gesture = 'unknown';
+    expect(analyzeSession(validateSession(data)).quality.eligible).toBe(0);
+  });
+  test('a legacy export cannot be silently relabeled v2 or acquire new fields', () => {
+    const data = session(); data.protocol = PROTOCOL;
+    expect(() => validateSession(data)).toThrow();
+    data.inputSettings = { autocorrect: 'off', predictions: 'off', gesture: 'off' };
+    expect(() => validateSession(data)).toThrow();
+    data.trials.forEach(t => { t.inputMethod = 'taps'; });
+    expect(validateSession(data)).toBe(data);
+    data.protocol = LEGACY_PROTOCOL;
+    expect(() => validateSession(data)).toThrow();
+  });
+  test('v2 rejects malformed settings and unknown per-trial methods', () => {
+    const data = session(); data.protocol = PROTOCOL;
+    data.trials.forEach(t => { t.inputMethod = 'taps'; });
+    for (const invalid of [null, [], {}, { autocorrect: 'off', predictions: 'off', gesture: true },
+      { autocorrect: 'off', predictions: 'off', gesture: 'off', extra: 'off' }]) {
+      data.inputSettings = invalid as never;
+      expect(() => validateSession(data)).toThrow('Invalid study result');
+    }
+    data.inputSettings = { autocorrect: 'off', predictions: 'off', gesture: 'off' };
+    data.trials[0].inputMethod = 'swipe' as never;
+    expect(() => validateSession(data)).toThrow('Invalid study result');
   });
   test.each([
     (d: any) => { d.password = 'DO-NOT-ECHO'; },
