@@ -71,3 +71,7 @@ The GitHub Actions runs endpoint was read at the beginning and near completion o
 The new CI workflow is configured for pull requests, pushes to `main` and manual dispatch, with Node 22/24/26. The publish workflow runs build, tests and package checks before publishing. Actions are pinned to the inspected release commits. Supported Node lines were checked against the [official release page](https://nodejs.org/en/about/previous-releases) on the date above.
 
 No npm publication, release tag or merge was performed. Version `0.0.2` is unchanged; the next release needs its own version decision. No blocking local failures remain. The runtime has not received a cryptographic audit or formal verification, and native browser/Windows/macOS end-to-end execution was not performed. Site policies, passphrases, device profiles, LLM/top-q, formal proofs, browser UI, Argon2id and storage remain outside this stage.
+
+## Integration update — 2026-10-31
+
+The preceding remote-CI section records the end of the initial local-only stage. After authorization to merge, [PR #2](https://github.com/IgorKramar/secure-password-generator/pull/2) was opened and [CI run 41194925103](https://github.com/IgorKramar/secure-password-generator/actions/runs/41194925103) passed all install/build/test/package steps on Node 22, 24 and 26. The PR was squash-merged to `main` as `6fa3bea768f4f7a391256dd2b905d65849060f18`. No npm release was made.

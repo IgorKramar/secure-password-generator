@@ -151,7 +151,7 @@ async function terminal(args: string[], answers: Answer[]) {
 describe('interactive readline lifecycle', () => {
   test('generates a default random password, with prompts on stderr', async () => {
     const result = await terminal([], [
-      { prompt: 'Mode [random/from-word]', answer: '\n' },
+      { prompt: 'Mode [random/passphrase/from-word]', answer: '\n' },
       { prompt: 'Length (Enter', answer: '\n' },
       { prompt: 'Count (1)', answer: '\n' },
       { prompt: 'Exclude 0O1Il?', answer: '\n' },
@@ -166,14 +166,14 @@ describe('interactive readline lifecycle', () => {
       { prompt: 'Base word', answer: 'apple\n' },
       { prompt: 'Password length', answer: '16\n' },
     ];
-    if (args.length === 0) answers.unshift({ prompt: 'Mode [random/from-word]', answer: 'from-word\n' });
+    if (args.length === 0) answers.unshift({ prompt: 'Mode [random/passphrase/from-word]', answer: 'from-word\n' });
     const result = await terminal(args, answers);
     expect(result.code).toBe(0);
     expect(result.stdout).toMatch(/^[A-Za-z0-9!@#$%^&*]{16}\n$/);
   });
 
   test('EOF at the first prompt exits with an error and no password', async () => {
-    const result = await terminal([], [{ prompt: 'Mode [random/from-word]', answer: null }]);
+    const result = await terminal([], [{ prompt: 'Mode [random/passphrase/from-word]', answer: null }]);
     expect(result.code).toBe(1);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain('Input ended');
@@ -190,17 +190,38 @@ describe('interactive readline lifecycle', () => {
   });
 
   test.each(['\u0003', '\u0004'])('handles terminal cancellation or EOF control characters', async key => {
-    const result = await terminal([], [{ prompt: 'Mode [random/from-word]', answer: key }]);
+    const result = await terminal([], [{ prompt: 'Mode [random/passphrase/from-word]', answer: key }]);
     expect(result.code).toBe(key === '\u0003' ? 130 : 1);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain(key === '\u0003' ? 'Cancelled' : 'Input ended');
   });
 
   test('invalid interactive input never echoes the value in diagnostics', async () => {
-    const result = await terminal([], [{ prompt: 'Mode [random/from-word]', answer: 'SECRET_INPUT\n' }]);
+    const result = await terminal([], [{ prompt: 'Mode [random/passphrase/from-word]', answer: 'SECRET_INPUT\n' }]);
     expect(result.code).toBe(1);
     expect(result.stdout).toBe('');
     // Terminal echo is expected; error messages must not repeat the input.
     expect(result.stderr.slice(result.stderr.indexOf('Error:'))).not.toContain('SECRET_INPUT');
   });
+});
+
+test('interactive passphrase uses its own word count and separator prompts', async () => {
+  const result = await terminal([], [
+    { prompt: 'Mode [random/passphrase/from-word]', answer: 'passphrase\n' },
+    { prompt: 'Word count (Enter', answer: '6\n' },
+    { prompt: 'Count (1)', answer: '2\n' },
+    { prompt: 'Separator [space/underscore/period]', answer: 'underscore\n' },
+  ]);
+  expect(result.code).toBe(0);
+  expect(result.stdout).toMatch(/^(?:[a-z-]+(?:_[a-z-]+){5}\n){2}$/);
+});
+
+test('interactive passphrase EOF terminates without output', async () => {
+  const result = await terminal([], [
+    { prompt: 'Mode [random/passphrase/from-word]', answer: 'passphrase\n' },
+    { prompt: 'Word count (Enter', answer: null },
+  ]);
+  expect(result.code).toBe(1);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toContain('Input ended');
 });

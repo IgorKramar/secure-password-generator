@@ -1,11 +1,14 @@
 import { Readable, Writable } from 'node:stream';
 import { createInterface } from 'node:readline';
-import { generatePassword, generateRandomPassword, MAX_PASSWORD_COUNT, MAX_PASSWORD_LENGTH } from '../index';
+import { generatePassword, generateRandomPassword, generatePassphrase, MAX_PASSWORD_COUNT, MAX_PASSWORD_LENGTH, MAX_PASSPHRASE_WORDS } from '../index';
+import { compilePolicy } from '../domain/policy';
 import { RandomSourceError } from '../domain/random';
 import { CliInputError, parseArguments, parseInteger, validateCount } from './arguments';
+import { readPolicyFile } from './policyFile';
 
 export const HELP = `Usage:
-  secure-passgen random [--length N | --entropy BITS] [--count N] [--exclude-ambiguous]
+  secure-passgen random [--length N | --entropy BITS] [--count N] [--exclude-ambiguous] [--policy FILE]
+  secure-passgen passphrase [--words N | --entropy BITS] [--count N] [--separator CHAR]
   secure-passgen from-word
   secure-passgen
   secure-passgen --help
@@ -15,6 +18,13 @@ random: independent uniform ASCII letters and digits; default target 128 bits.
   --entropy BITS         Positive integer target; exclusive with --length
   --count N              Number of passwords, 1-${MAX_PASSWORD_COUNT} (default 1)
   --exclude-ambiguous    Exclude 0, O, 1, I and lowercase l
+  --policy FILE          JSON policy: uniform valid passwords, exact combination count
+                        Policy lengths are limited to 256; files to 16 KiB
+
+passphrase: independent EFF words with replacement; default target 128 bits (10 words).
+  --words N              Word count, 1-${MAX_PASSPHRASE_WORDS}; exclusive with --entropy
+  --separator CHAR       Space (default), underscore or period; quote a space in the shell
+  --count N              Number of passphrases, 1-${MAX_PASSWORD_COUNT} (default 1)
   --help, -h             Show this help
 
 No arguments: interactive mode selection. from-word: interactive legacy mode.
@@ -53,7 +63,7 @@ async function interactive(io: CliIO, fromWord: boolean): Promise<string[]> {
 
   try {
     io.error.write('Secure Password Generator\n');
-    const mode = fromWord ? 'from-word' : (await prompt('Mode [random/from-word] (random): ')).trim() || 'random';
+    const mode = fromWord ? 'from-word' : (await prompt('Mode [random/passphrase/from-word] (random): ')).trim() || 'random';
     if (mode === 'from-word') {
       const word = await prompt('Base word (ASCII, visible input): ');
       // The library preserves all ASCII. The terminal interface accepts printable input only.
@@ -61,7 +71,21 @@ async function interactive(io: CliIO, fromWord: boolean): Promise<string[]> {
       const length = parseInteger(await prompt('Password length (at least word length + 4): '), 'Length');
       return [generatePassword(word, length)];
     }
-    if (mode !== 'random') throw new CliInputError('Mode must be random or from-word');
+    if (mode === 'passphrase') {
+      const wordsText = await prompt('Word count (Enter for a 128-bit target): ');
+      const countText = await prompt('Count (1): ');
+      const separatorName = (await prompt('Separator [space/underscore/period] (space): ')) || 'space';
+      const separators = { space: ' ', underscore: '_', period: '.' } as const;
+      if (!Object.hasOwn(separators, separatorName)) throw new CliInputError('Separator must be space, underscore or period');
+      const count = countText === '' ? 1 : parseInteger(countText, 'Count');
+      validateCount(count);
+      const options = {
+        wordCount: wordsText === '' ? undefined : parseInteger(wordsText, 'Word count'),
+        separator: separators[separatorName as keyof typeof separators],
+      };
+      return Array.from({ length: count }, () => generatePassphrase(options));
+    }
+    if (mode !== 'random') throw new CliInputError('Mode must be random, passphrase or from-word');
     const lengthText = await prompt('Length (Enter for a 128-bit target): ');
     const countText = await prompt('Count (1): ');
     const excludeText = (await prompt('Exclude 0O1Il? [y/N]: ')).toLowerCase();
@@ -88,9 +112,17 @@ export async function runCli(args: readonly string[], io: CliIO = {
       io.output.write(HELP);
       return 0;
     }
-    const passwords = command.mode === 'interactive'
-      ? await interactive(io, command.fromWord)
-      : Array.from({ length: command.count }, () => generateRandomPassword(command.options));
+    let passwords: string[];
+    if (command.mode === 'interactive') {
+      passwords = await interactive(io, command.fromWord);
+    } else if (command.mode === 'passphrase') {
+      passwords = Array.from({ length: command.count }, () => generatePassphrase(command.options));
+    } else if (command.policyFile !== undefined) {
+      const compiled = compilePolicy(readPolicyFile(command.policyFile), command.options);
+      passwords = Array.from({ length: command.count }, () => compiled.generate());
+    } else {
+      passwords = Array.from({ length: command.count }, () => generateRandomPassword(command.options));
+    }
     // Bounded by MAX_PASSWORD_COUNT * MAX_PASSWORD_LENGTH; no partial batch on generation failure.
     io.output.write(passwords.join('\n') + '\n');
     return 0;

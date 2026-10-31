@@ -1,18 +1,19 @@
 {
   "name": "ts-secure-password-generator",
   "version": "0.0.2",
-  "description": "Independent random passwords with entropy targets, a word-based generator and a CLI.",
+  "description": "Offline random passwords, EFF passphrases, exact site-policy sampling and a CLI.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "secure-passgen": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/check-wordlist.cjs && tsc",
     "pretest": "npm run build",
     "test": "jest --runInBand",
     "prepack": "npm run build",
-    "test:package": "node scripts/check-package.cjs"
+    "test:package": "node scripts/check-package.cjs",
+    "check:wordlist": "node scripts/check-wordlist.cjs"
   },
   "repository": {
     "type": "git",
@@ -27,7 +28,7 @@
     "cryptography"
   ],
   "author": "Igor Kramar",
-  "license": "MIT",
+  "license": "(MIT AND CC-BY-4.0)",
   "bugs": {
     "url": "https://github.com/IgorKramar/secure-password-generator/issues"
   },
@@ -47,6 +48,9 @@
     "dist",
     "README.md",
     "README.ru.md",
-    "LICENSE.md"
+    "LICENSE.md",
+    "data/eff-large-wordlist.txt",
+    "THIRD_PARTY_NOTICES.md",
+    "examples/site-policy.json"
   ]
 }
