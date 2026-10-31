@@ -28,12 +28,12 @@ try {
   const names = new Set(packed.files.map(file => file.path));
   for (const name of ['dist/index.js', 'dist/index.d.ts', 'dist/cli.js', 'dist/domain/randomPassword.js',
     'dist/domain/randomPassword.d.ts', 'dist/domain/policy.d.ts', 'dist/domain/passphrase.d.ts', 'dist/data/eff-words.json',
-    'README.md', 'README.ru.md', 'LICENSE.md', 'THIRD_PARTY_NOTICES.md', 'data/eff-large-wordlist.txt', 'examples/site-policy.json']) {
+    'README.md', 'README.ru.md', 'LICENSE.md', 'THIRD_PARTY_NOTICES.md', 'data/eff-large-wordlist.txt', 'examples/site-policy.json', 'examples/mobile-lowercase-policy.json']) {
     assert(names.has(name), `Missing published file: ${name}`);
   }
   for (const name of names) {
     assert(name.startsWith('dist/') || ['package.json', 'README.md', 'README.ru.md', 'LICENSE.md',
-      'THIRD_PARTY_NOTICES.md', 'data/eff-large-wordlist.txt', 'examples/site-policy.json'].includes(name),
+      'THIRD_PARTY_NOTICES.md', 'data/eff-large-wordlist.txt', 'examples/site-policy.json', 'examples/mobile-lowercase-policy.json'].includes(name),
       `Unexpected published file: ${name}`);
   }
 
@@ -92,6 +92,9 @@ try {
   assert(/^[A-Za-z0-9!@#$%^&*]{21}\n$/.test(policy.stdout), 'Installed policy CLI returned unexpected output');
   assert(/[a-z]/.test(policy.stdout) && /[A-Z]/.test(policy.stdout) && /[0-9]/.test(policy.stdout) && /[!@#$%^&*]/.test(policy.stdout));
   assert.equal(policy.stderr, '');
+  const mobile = run(bin, ['random', '--policy', join(installed, 'examples/mobile-lowercase-policy.json'), '--entropy', '128'], consumer);
+  assert(/^[a-km-z]{28}\n$/.test(mobile.stdout), 'Installed mobile policy returned unexpected output');
+  assert.equal(mobile.stderr, '');
 
   // Exercise the documented global installation without changing the user's global prefix.
   const prefix = join(temporary, 'global');

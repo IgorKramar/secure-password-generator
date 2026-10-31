@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "noEmit": true, "rootDir": "../..", "declaration": false },
+  "include": ["model.ts", "app.ts"],
+  "exclude": []
+}
