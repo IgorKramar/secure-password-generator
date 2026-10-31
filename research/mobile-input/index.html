@@ -37,6 +37,10 @@
     <label>Латинская раскладка<input name="layout" maxlength="120" required placeholder="Например: English QWERTY"></label>
     <label>Насколько вам знакомы английские слова?<select name="englishFamiliarity" required><option value="">Выберите</option><option value="limited">Мало знакомы</option><option value="basic">Знакомы основные слова</option><option value="comfortable">Читаю уверенно</option></select></label>
     <label>Способ ввода<select name="technique" required><option value="">Выберите</option><option value="one-thumb-portrait">Один большой палец, вертикально</option><option value="two-thumbs-portrait">Два больших пальца, вертикально</option><option value="index-finger-portrait">Указательный палец, вертикально</option></select></label>
+    <p>Проверьте каждую настройку в приложении клавиатуры. Страница не может отключить их за вас.</p>
+    <label>Автокоррекция<select name="autocorrect" required><option value="">Выберите</option><option value="off">Выключена</option><option value="on">Включена</option><option value="unknown">Не знаю</option></select></label>
+    <label>Подсказки слов<select name="predictions" required><option value="">Выберите</option><option value="off">Выключены</option><option value="on">Включены</option><option value="unknown">Не знаю</option></select></label>
+    <label>Жестовый ввод / свайпы<select name="gesture" required><option value="">Выберите</option><option value="off">Выключен</option><option value="on">Включён</option><option value="unknown">Не знаю</option></select></label>
     <label><input type="checkbox" required> Я согласен(на) на этот локальный опыт и настроил(а) клавиатуру. Могу остановиться в любой момент.</label>
     <button>Подготовить сессию</button>
   </form>
@@ -50,13 +54,14 @@
     <button>Проверить</button><button id="skip" class="secondary" type="button">Пропустить попытку</button>
   </form>
   <form id="feedback" hidden>
+    <label>Как вы вводили именно этот образец?<select id="input-method" required><option value="">Выберите</option><option value="taps">Только отдельными нажатиями</option><option value="assisted">Использовал(а) свайпы, диктовку или подсказки</option><option value="unknown">Не уверен(а)</option></select></label>
     <label>Насколько удобно было вводить?<select id="rating" required><option value="">Выберите оценку</option><option value="1">1 — очень неудобно</option><option value="2">2</option><option value="3">3</option><option value="4">4 — нейтрально</option><option value="5">5</option><option value="6">6</option><option value="7">7 — очень удобно</option></select></label>
     <label>Сколько раз вы переключали регистр или слой клавиатуры?<input id="switches" type="number" min="0" max="999" step="1" placeholder="Необязательно; оставьте пустым, если не помните"></label>
     <small>Самооценка переключений; страница не видит клавиши экранной клавиатуры.</small><br>
     <button>Сохранить оценку</button>
   </form>
   <button id="save" class="secondary" hidden>Скачать результаты JSON</button>
-  <details id="results" hidden><summary>Предварительные счётчики</summary><p>Только эта сессия. Тренировки и отмеченные попытки исключены из основного сравнения. Время показано только для успешных завершений.</p><pre id="summary"></pre></details>
+  <details id="results" hidden><summary>Предварительные счётчики</summary><p>Только эта сессия. В v2 учитываются попытки отдельными нажатиями с выключенными помощниками; тренировки, помощь и прерывания исключены. Composition само по себе не исключает попытку. Время показано только для успешных завершений.</p><pre id="summary"></pre></details>
   <p><small id="build"></small></p>
   <details><summary>Лицензии кода и словаря</summary><pre>STUDY_NOTICES</pre></details>
   <noscript>Для измерения нужен JavaScript. Откройте файл в браузере, а не в просмотрщике документов.</noscript>

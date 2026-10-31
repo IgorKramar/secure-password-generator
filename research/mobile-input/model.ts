@@ -3,7 +3,12 @@ import { generateRandomPassword, getRandomPasswordInfo, generatePassphrase, getP
   generatePolicyPassword, getPolicyPasswordInfo } from '../../dist/index';
 import mobilePolicy from '../../examples/mobile-lowercase-policy.json';
 
-export const PROTOCOL = 'mobile-input-v1';
+export const PROTOCOL = 'mobile-input-v2';
+export const LEGACY_PROTOCOL = 'mobile-input-v1';
+export const INPUT_METHODS = ['taps', 'assisted', 'unknown'] as const;
+export type InputMethod = typeof INPUT_METHODS[number];
+export type Setting = 'off' | 'on' | 'unknown';
+export interface InputSettings { autocorrect: Setting; predictions: Setting; gesture: Setting }
 export const TARGET_BITS = 128;
 export const TRIAL_LIMIT_MS = 300_000;
 export const CONDITIONS = ['random62', 'lower25', 'eff10'] as const;
@@ -85,6 +90,8 @@ export interface TrialResult extends PlannedTrial {
   flags: Flag[];
   ease: number | null;
   reportedSwitches: number | null;
+  /** Required for v2 exports; absent in legacy v1. Self-report, not OS telemetry. */
+  inputMethod?: InputMethod;
 }
 
 /** Stores counts only; submitted text is never retained in a result. */
@@ -130,11 +137,17 @@ export class Trial {
 }
 
 export interface StudySession {
-  protocol: typeof PROTOCOL;
+  protocol: typeof PROTOCOL | typeof LEGACY_PROTOCOL;
   build: string;
   participant: number;
   environment: { device: string; os: string; browser: string; keyboard: string; layout: string; technique: string; englishFamiliarity: string };
   trials: TrialResult[];
+  /** Required for v2 exports; absent in legacy v1. */
+  inputSettings?: InputSettings;
+}
+
+export function settingsConfirmedOff(settings: InputSettings | undefined): boolean {
+  return !!settings && settings.autocorrect === 'off' && settings.predictions === 'off' && settings.gesture === 'off';
 }
 
 function median(values: number[]): number | null {
@@ -143,26 +156,62 @@ function median(values: number[]): number | null {
   return (v[Math.floor((v.length - 1) / 2)] + v[Math.floor(v.length / 2)]) / 2;
 }
 
-/** Descriptive within-person summaries; flags and missing outcomes remain visible. */
-export function summarize(session: StudySession) {
+function summarizeSelected(session: StudySession, eligibleTrial: (trial: TrialResult) => boolean) {
   return CONDITIONS.map(condition => {
     const measured = session.trials.filter(t => t.condition === condition && !t.practice);
-    const eligible = measured.filter(t => t.flags.length === 0);
+    const eligible = measured.filter(eligibleTrial);
     const completed = eligible.filter(t => t.status === 'correct');
-    return { condition, scheduled: 3, recorded: measured.length, flagged: measured.length - eligible.length,
+    return { condition, scheduled: 3, recorded: measured.length, flagged: measured.filter(t => t.flags.length > 0).length,
+      excluded: measured.length - eligible.length, eligible: eligible.length,
+      observedCompleted: measured.filter(t => t.status === 'correct').length,
+      observedSkipped: measured.filter(t => t.status === 'skipped').length,
+      observedTimedOut: measured.filter(t => t.status === 'timeout').length,
       completed: completed.length, skipped: eligible.filter(t => t.status === 'skipped').length,
       timedOut: eligible.filter(t => t.status === 'timeout').length,
       firstAttemptErrors: eligible.filter(t => t.firstAttemptDistance !== null && t.firstAttemptDistance > 0).length,
       attempted: eligible.filter(t => t.firstAttemptDistance !== null).length,
+      wrongSubmissions: eligible.reduce((sum, t) => sum + t.wrongSubmissions, 0),
       medianCompletionMs: median(completed.map(t => t.elapsedMs)),
       medianEase: median(eligible.flatMap(t => t.ease === null ? [] : [t.ease])),
     };
   });
 }
 
+/** v1 remains unchanged; v2 treats composition as informational, with explicit self-reports. */
+export function summarize(session: StudySession) {
+  return summarizeSelected(session, trial => session.protocol === LEGACY_PROTOCOL ? trial.flags.length === 0 :
+    settingsConfirmedOff(session.inputSettings) && trial.inputMethod === 'taps' && trial.flags.every(flag => flag === 'composition'));
+}
+
+/** Protocol-specific primary results, with a separate post-hoc diagnostic for legacy v1. */
+export function analyzeSession(session: StudySession) {
+  const conditions = summarize(session);
+  const measured = session.trials.filter(t => !t.practice);
+  return {
+    conditions,
+    quality: {
+      recorded: measured.length, scheduled: 9,
+      eligible: conditions.reduce((sum, c) => sum + c.eligible, 0),
+      inputMethodCounts: session.protocol === PROTOCOL ? Object.fromEntries(INPUT_METHODS.map(method =>
+        [method, measured.filter(t => t.inputMethod === method).length])) : null,
+      flagCounts: Object.fromEntries(FLAGS.map(flag => [flag, measured.filter(t => t.flags.includes(flag)).length])),
+      warnings: [
+        ...(measured.length > 0 && conditions.every(c => c.eligible === 0) ? [`No measured trials are eligible under ${session.protocol}.`] : []),
+        ...(measured.some(t => t.flags.includes('composition')) ? ['Composition records IME activity, not proof of autocorrection or proof that assistance was disabled.'] : []),
+        ...(session.protocol === PROTOCOL && !settingsConfirmedOff(session.inputSettings) ? ['v2 keyboard settings were not all reported off; no trials are eligible.'] : []),
+        ...(measured.some(t => t.status !== 'correct') ? ['Completion-time medians omit skipped and timed-out attempts; report their counts alongside times.'] : []),
+      ],
+    },
+    compositionSensitivity: session.protocol === LEGACY_PROTOCOL ? {
+      interpretation: 'Post-hoc descriptive sensitivity analysis only. Allows composition as the sole flag; all other flags still exclude. Does not establish manual-only input or change the original v1 result.',
+      conditions: summarizeSelected(session, trial => trial.flags.every(flag => flag === 'composition')),
+    } : null,
+  };
+}
+
 /** Reject edited/unknown fields before analysis; never relay their content to diagnostics. */
 export function validateSession(value: unknown): StudySession {
-  const bad = (): never => { throw new Error('Invalid study result; expected the mobile-input-v1 export schema'); };
+  const bad = (): never => { throw new Error('Invalid study result; expected a consistent mobile-input-v1 or mobile-input-v2 export'); };
   function object(v: unknown, keys: string[]): Record<string, unknown> {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return bad();
     const o = v as Record<string, unknown>;
@@ -172,9 +221,14 @@ export function validateSession(value: unknown): StudySession {
   function number(v: unknown, min: number, max: number, integer = false): boolean {
     return typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max && (!integer || Number.isInteger(v));
   }
-  const root = object(value, ['protocol', 'build', 'participant', 'environment', 'trials']);
-  if (root.protocol !== PROTOCOL || typeof root.build !== 'string' || !/^[a-f0-9]{64}$/.test(root.build) ||
+  const v2 = !!value && typeof value === 'object' && (value as { protocol?: unknown }).protocol === PROTOCOL;
+  const root = object(value, ['protocol', 'build', 'participant', 'environment', 'trials', ...(v2 ? ['inputSettings'] : [])]);
+  if (![PROTOCOL, LEGACY_PROTOCOL].includes(root.protocol as typeof PROTOCOL) || typeof root.build !== 'string' || !/^[a-f0-9]{64}$/.test(root.build) ||
       !number(root.participant, 1, 999, true)) return bad();
+  if (v2) {
+    const settings = object(root.inputSettings, ['autocorrect', 'predictions', 'gesture']);
+    for (const setting of Object.values(settings)) if (!['off', 'on', 'unknown'].includes(setting as string)) return bad();
+  }
   const env = object(root.environment, ['device', 'os', 'browser', 'keyboard', 'layout', 'technique', 'englishFamiliarity']);
   for (const v of Object.values(env)) if (typeof v !== 'string' || v.length < 1 || v.length > 120 || /[\x00-\x1f]/.test(v)) return bad();
   if (!Array.isArray(root.trials) || root.trials.length > 12) return bad();
@@ -182,7 +236,8 @@ export function validateSession(value: unknown): StudySession {
   for (let i = 0; i < root.trials.length; i++) {
     const t = object(root.trials[i], ['condition', 'practice', 'block', 'index', 'characterLength', 'entropyBits', 'status',
       'elapsedMs', 'firstInputMs', 'firstSubmitMs', 'firstAttemptDistance', 'wrongSubmissions', 'inputEvents',
-      'deleteEvents', 'flags', 'ease', 'reportedSwitches']);
+      'deleteEvents', 'flags', 'ease', 'reportedSwitches', ...(v2 ? ['inputMethod'] : [])]);
+    if (v2 && !(INPUT_METHODS as readonly unknown[]).includes(t.inputMethod)) return bad();
     const info = formatInfo(plan[i].condition);
     if (t.index !== i || t.condition !== plan[i].condition || t.practice !== plan[i].practice || t.block !== plan[i].block ||
         t.entropyBits !== info.entropyBits || !number(t.characterLength, info.minLength, info.maxLength, true) ||

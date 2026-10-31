@@ -36,7 +36,7 @@ secure-passgen random --entropy 128
 
 Для этапа ③ подготовлен отдельный локальный инструмент: `npm run study:build`, затем `npm run study:serve -- --lan` для телефона в той же доверенной Wi-Fi сети. Сравниваются random62 (22 символа), строчный кандидат (28 символов, без `l`) и EFF (10 слов); каждый достигает цели 128 бит. Политика кандидата включена в пакет как `examples/mobile-lowercase-policy.json`; новый публичный API не требуется.
 
-Инструмент измеряет время, ошибки отправки и оценки удобства; образцы и введённый текст в экспорт не входят. **Реальных замеров и подтверждённого улучшения удобства пока нет.** [Методика, запуск на телефоне, исключения и анализ](research/mobile-input/README.ru.md) ([версия в репозитории для читателей npm](https://github.com/IgorKramar/secure-password-generator/blob/main/research/mobile-input/README.ru.md)). Инструмент и Playwright как devDependency не входят в runtime установленного пакета. Проверка: `npx playwright install chromium`, затем `npm run test:study`.
+Инструмент измеряет время, ошибки отправки и удобство; образцы и введённый текст в экспорт не входят. **Получен пилот v1 с жестовым вводом и composition во всех попытках; преимущество формата отдельно от способа ввода не установлено.** v2 явно записывает настройки клавиатуры и способ каждой попытки. Анализатор сохраняет исключения v1 и отдельно выдаёт последующий диагностический расчёт. [Методика, запуск, отчёт пилота и анализ](research/mobile-input/README.ru.md) ([версия в репозитории для читателей npm](https://github.com/IgorKramar/secure-password-generator/blob/main/research/mobile-input/README.ru.md)). Инструмент и Playwright не входят в runtime пакета. Проверка: `npx playwright install chromium`, затем `npm run test:study`.
 
 ## Библиотека
 

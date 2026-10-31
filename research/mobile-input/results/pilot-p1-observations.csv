@@ -1,0 +1,10 @@
+block,condition,status,characterLength,elapsedMs,firstSubmitMs,firstAttemptDistance,wrongSubmissions,ease,reportedSwitches,flags
+1,random62,correct,22,39377.799999952316,39377.799999952316,0,0,4,10,composition
+1,lower25,correct,28,29944.5,29944.5,0,0,5,0,composition
+1,eff10,correct,76,52280,52280,0,0,6,,composition
+2,lower25,correct,28,31939,31939,0,0,5,,composition
+2,eff10,correct,77,61732.09999990463,49062.09999990463,1,3,4,,composition
+2,random62,correct,22,30384.799999952316,30384.799999952316,0,0,5,15,composition
+3,eff10,correct,86,55870.5,55870.5,0,0,4,,composition
+3,random62,skipped,22,94059.80000019073,31075.60000014305,2,3,1,5,composition
+3,lower25,correct,28,34011.200000047684,34011.200000047684,0,0,4,,composition
